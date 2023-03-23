@@ -1,0 +1,208 @@
+---
+title: "BMI 510: Homework #2"
+author: "Elizabeth Nemeti"
+date: "01/28/2023"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+***
+This homework is due Monday, 1/23 at 1 PM. (It may be returned up until Wednesday, 1/25 at 1 PM without penalty, but the next homework will be released 1/23.)
+***
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F)
+```
+
+# Q1
+
+Let E and F be two events for which P(E or F) = 0.75. What is the probability that neither E nor F occurs?
+
+```{r }
+# answer code for Q1
+1 - 0.75 = 0.25
+```
+
+The probability that neither E nor F occurs is 0.25.
+
+# Q2
+Let’s say you have an experiment with two possible outcomes. One outcome has probability p, and the other outcome has probability p^2.
+
+
+```{r}
+# answer code for Q2a
+p=(-1+sqrt(5))/2
+p
+
+# answer code for Q2b
+1 + p
+
+```
+
+You need to use the quadratic formula and p is 0.618...
+
+# Q3
+
+A coin is tossed three times and the sequence of heads and tails is recorded. List the sample space.
+
+```{r }
+N/A
+```
+
+S = {HHH,HHT,HTH,THH,HTT,THT,TTH,TTT}
+
+# Q4
+
+With the same coin, list the elements that make up the following events A-C.
+A. At least two tosses are heads.
+B. The first two tosses are heads.
+C. The last toss is a tail.
+
+```{r }
+N/A
+```
+
+A = {HHH,HHT,HTH,THH}
+B = {HHH,HHT}
+C = {HHT,HTT,TTT,THT}
+
+# Q5
+
+Write a function to convert probabilities to odds, and a function to convert odds to probabilities.
+
+```{r }
+
+probability_to_odds <- function(probability) {
+  return(probability / (1 - probability))
+}
+
+odds <- probability_to_odds(0.5)
+odds
+
+odds_to_probability <- function(odds) {
+  return(odds / (odds + 1))
+}
+
+probability <- odds_to_probability(1)
+probability
+```
+
+The odds are 1:1 when you pass in 0.5 for the 1st function.
+The probability is 0.5 when you pass in 1 for the 2nd function.
+
+# Q6
+
+A) Graph odds O(A) as a function of probability P(A) as P(A) varies between 0 and 1.
+B) Graph probability P(A) as a function of odds O(A) as O(A) varies between 0 and 100.
+
+```{r }
+library(ggplot2)
+
+# A)
+probability <- seq(0, 1, by = 0.01)
+odds <- probability_to_odds(probability)
+data <- data.frame(probability, odds)
+
+ggplot(data, aes(x = probability, y = odds)) +
+  geom_line() +
+  ggtitle("Odds as a function of probability") +
+  xlab("Probability") +
+  ylab("Odds")
+
+# B)
+odds <- seq(0, 100, by = 1)
+probability <- odds_to_probability(odds)
+data <- data.frame(odds, probability)
+
+ggplot(data, aes(x = odds, y = probability)) +
+  geom_line() +
+  ggtitle("Probability as a function of odds.") +
+  xlab("Probability") +
+  ylab("Odds")
+
+```
+
+By using ggplot2, I made the two graphs where graph B is the inverse of graph A. 
+
+# Q7
+
+There are a lot of visualization softwares for DAGs, but ASCII art works fine for simple ones (e.g., X1 --> X2 ). Draw the DAGs representing the following joint probability distributions.
+
+```{r }
+N/A
+```
+
+1. X1 X2 (no arrow)
+2. X1 --> X2
+3. X2 --> X1
+4. X1 --> X2 --> X3
+5. SES --> water --> cholera
+
+6.     --> water --> cholera
+   SES 
+       --> elevation
+
+
+# Q8
+Because the uniform distribution on [0,1] has mean 1/2 and variance 1/12, the sum of 12 random variables drawn from the uniform distribution (minus 6) has mean 0 and variance 1. Use a computer to simulate multiple samples of 12 uniform random variables, and sum each sample. Use base R to draw a histogram of the sums; then do the same thing with ggplot2.
+
+
+```{r }
+sums <- rowSums(matrix(runif(12*1000), ncol = 12)) - 6
+
+#without ggplot
+hist(sums, main = "Histogram of Sums", xlab = "Sum")
+
+#with GG plot
+library(ggplot2)
+ggplot(data = data.frame(sums), aes(sums)) + 
+  geom_histogram(fill = "grey",bins = 20) + 
+  labs(title = "Histogram of Sums", x = "Sum", y = "Frequency")
+
+```
+
+# Q9
+
+Write a short program that calculates a single random variable drawn from N(0,1) based on the answer to problem 8.
+
+```{r }
+random_vars <- runif(12)
+sum_of_vars <- sum(random_vars) - 6
+scaled_var <- sum_of_vars / sqrt(12)
+single_var <- scaled_var
+single_var
+
+```
+
+# Q10
+The data we used to demonstrate “Simpson’s paradox” are available at
+[https://jlucasmckay.bmi.emory.edu/global/bmi585/simpson_data.csv. Use ggplot2 to approximate the graph from the lecture.
+
+```{r }
+simpson_data <-read.csv("simpson_data.csv", header=TRUE, sep=",")
+View(simpson_data)
+
+ggplot(simpson_data, aes(x = Exercise, y = Cholesterol, color = factor(Age))) + 
+  geom_point(size=0.5, shape=20) + #fixing point sizes
+  scale_x_continuous(limits = c(0,1), breaks = seq(0,1,0.25)) + #fixing axis range
+  geom_smooth(method = "lm", se = FALSE) + # here we add the regression lines/ fit per group
+  xlab("Exercise") +
+  ylab("Cholesterol") +
+  ggtitle("(Bad) Cholesterol vs. Exercise") +
+  scale_color_discrete(name = "Age") + # here we add the colour scale to the Age factor
+  theme_classic() + # setting a white background
+  theme(
+        axis.title = element_text(size=5),
+        plot.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(color = "lightgrey"), # grey gridlines
+        panel.grid.minor = element_line(color = "lightgrey"),
+        axis.text.x = element_text(size = 5), # resizing axes
+        axis.text.y = element_text(size = 5),
+        legend.title = element_text(size = 5), # resizing legend
+        legend.text = element_text(size = 3), 
+        legend.position = c(0.05, 0.79) # moving the legend from right to custom spot
+        )
+
+```
+
