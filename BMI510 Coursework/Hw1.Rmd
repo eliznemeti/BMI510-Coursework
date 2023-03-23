@@ -1,0 +1,146 @@
+---
+title: "BMI 510: Homework #1"
+author: "Author Name"
+date: "01/23/2023"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+***
+This homework is due Monday, 1/23 at 1 PM. (It may be returned up until Wednesday, 1/25 at 1 PM without penalty, but the next homework will be released 1/23.)
+***
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F)
+```
+
+# Q1
+
+A machine that fills packages of a certain medication cannot put exactly the same number of doses into every package. Suppose the quantity poured into a standard container is 60 doses and each dose weighs 200 mg. The packaged doses weigh 12,000 mg on average, with standard deviation 200 mg. What proportion of packages contain less than 60 doses?
+
+```{r }
+12000/200
+mean <- 60
+sd <- 200/200
+1-pnorm(59, mean = mean, sd = sd, lower.tail = F)
+```
+
+16% of packages contain less than 60 doses.
+
+# Q2
+
+Suppose the medication dispenser can be adjusted to any mean while leaving the standard deviation unchanged. To what mean should we set the machine so that only 5% of packages contain less than 60 doses? 
+
+
+```{r}
+mean = qnorm(0.05, mean = 59, sd = 1, lower.tail = F)
+mean
+1-pnorm(59, mean = mean, sd = 1, lower.tail = F)
+```
+
+We would need a mean of 60.64485. 
+
+# Q3
+
+A fair coin is tossed 6 times. What is the probability of getting 3 heads in a row?
+
+
+```{r}
+P <- dbinom(3,6,0.5)
+P
+```
+
+By using the binomial probability formula, it has a chance of 31.25%.
+
+# Q4
+
+Show two ways to access the mpg variable of the mtcars dataset as a numeric vector.
+
+
+```{r}
+data(mtcars)
+mtcars
+#mtcars_data<-read.csv('mtcars.csv')
+#attach(mtcars_data)
+#mtcars_data
+
+numeric_vector1 <- mtcars$mpg
+numeric_vector1
+numeric_vector2 <- mtcars[[1]]
+numeric_vector2
+
+```
+You can use the $ operator or [[]].
+
+# Q5
+
+What is the difference between dplyr::select(mtcars,mpg) and dplyr::pull(mtcars,mpg)
+
+
+```{r}
+library(dplyr)
+dplyr::select(mtcars,mpg)
+dplyr::pull(mtcars,mpg)
+```
+Pull returns/ creates a single column as a vector whereas select returns one or more columns as a dataframe.
+
+# Q6
+
+Write a base R command (using sum) to calculate the sum of squares of the numbers 1 through 10.
+
+```{r}
+sum((1:10)^2)
+```
+The sum is 385. 
+
+# Q7
+Write a vector multiplication (using the vector operator %*% ) to calculate the sum of squares of the numbers 1 through 10.
+
+```{r}
+sum((1:10)%*%(1:10))
+```
+The sum is 385. 
+
+# Q8
+Write a function MnSd(x) that returns a two-element vector with the mean and standard deviation of the input x. Make sure that the user can specify the argument na.rm to define how the function treats missing values. (hint: look up “dynamic dots.”) 
+
+```{r}
+MnSd <- function(x, ...)
+  {
+  args <- list(...)
+  x_mean <- mean(x, ...)
+  x_sd <- sd(x, ...)
+  c(x_mean, x_sd)
+}
+
+# testing
+x <- c(1, NA, 3, 4, 5, 6, 7, 8, NA, 10)
+MnSd(x, na.rm = TRUE)
+
+```
+The mean is 5.5 and standard deviation is 2.9. 
+
+# Q9
+The janitor package has a really useful table function: tabyl.Cross-tabulate the cyl and gear variables from the mtcars dataset. Use the adorn functions to add row and column totals. Make a table with frequency counts.
+
+```{r}
+install.packages("janitor")
+library("janitor")
+
+cars_table <- tabyl(mtcars, cyl, gear)
+cars_table <- adorn_totals(cars_table, c("row", "col"))
+cars_table
+
+```
+
+# Q10
+Make the same table with percentages using the adorn_percentages functionality in janitor. 
+
+```{r}
+cars_table <- tabyl(mtcars, cyl, gear)
+cars_table <- adorn_totals(cars_table, c("row", "col"))
+cars_table <- adorn_percentages(cars_table, ("row"))
+cars_table
+
+```
