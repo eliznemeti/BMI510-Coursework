@@ -1,0 +1,168 @@
+---
+title: "Homework 7"
+author: "J. Lucas McKay"
+date: "3/17/2023"
+output:
+  pdf_document: default
+  html_document: default
+student: Elizabeth Nemeti
+---
+
+<style>div.soln { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}</style>
+
+***
+```{r setup, include=FALSE}
+setwd("/Users/Elizabeth Nemeti/Desktop/R for BMI510")
+library(tidyverse)
+```
+
+Section 1: Multiple Comparisons
+
+We discussed several methods for multiple comparison adjustment, all of which can be implemented from scratch. In particular, the built-in p.adjust function returns “adjusted” p-values, which may not be what you want as an analyst. One way to improve the utility is to create “wrapper” functions around p.adjust.
+
+Implement a Bonferroni-Holm correction function that takes a vector of p-values p and a value for alpha and returns a logical vector indicating which elements of p are statistically significant. Construct this as a“wrapper” around the built-in p.adjust function.Create a similar function for FDR.
+
+Test your function on the following vector of p-values.
+NB: be sure that the functions work with unordered inputs!
+
+## Test A Test B Test C Test D Test E Test F Test G Test H Test I Test J ## 0.0025 0.0050 0.0075 0.0100 0.0125 0.0150 0.0175 0.0200 0.0225 0.0250
+
+```{r Secion 1.1, include=TRUE}
+
+p <- c(0.0025, 0.0050, 0.0075, 0.0100, 0.0125, 0.0150, 0.0175, 0.0200, 0.0225, 0.0250)
+
+alpha <- 0.05
+
+bonferroni_holm_correction <- function(p, alpha) {
+  p_adjusted <- p.adjust(p, method = "holm")
+  sig_element <- p_adjusted <= alpha
+  return(sig_element)
+}
+
+print(bonferroni_holm_correction(p, alpha))
+
+fdr_correction <- function(p, alpha) {
+  p_adjusted <- p.adjust(p, method = "fdr")
+  sig_element <- p_adjusted <= alpha
+  return(sig_element)
+}
+
+print(fdr_correction(p, alpha))
+
+```
+
+Revise the function from part 1 so that you calculate adjusted p-values manually.
+
+```{r Secion 1.2, include=TRUE}
+
+bonferroni_holm_correction_manual <- function(p, alpha) {
+  n <- length(p)
+  p_sorted <- sort(p)
+  rank <- order(p)
+  p_adjusted <- pmin(1, n * p_sorted / (n:1))
+  p_adjusted <- p_adjusted[order(rank)]
+  sig_element <- p_adjusted <= alpha
+  return(sig_element)
+}
+
+print(bonferroni_holm_correction_manual(p, alpha))
+
+```
+
+Revise the function from part 2 so that you calculate adjusted p-values manually.
+
+```{r Secion 1.3, include=TRUE}
+
+fdr_correction_manual <- function(p, alpha) {
+  n <- length(p)
+  p_sorted <- sort(p)
+  rank <- order(p)
+  p_adjusted <- pmin(1, p_sorted * n / (1:n))
+  p_adjusted <- p_adjusted[order(rank)]
+  sig_element <- p_adjusted <= alpha
+  return(sig_element)
+}
+
+print(fdr_correction_manual(p, alpha))
+
+```
+Section 2
+
+There is a set of CSF biomarker data available here (https://jlucasmckay.bmi.emory.edu/global/bmi510/csf.csv).Implement an ANOVA on the variable Ab42 using the grouping variable Group. You should perform a “complete case” analysis; e.g., delete any observations with missing values for Ab42.
+
+```{r Secion 2.1, include=TRUE}
+
+csf_data <- read.csv("csf.csv", header=TRUE, sep=",")
+View(csf_data)
+
+# remove rows with Nans for Ab42
+csf_data <- csf_data[!is.na(csf_data$Ab42),] 
+View(csf_data)
+
+```
+
+Calculate SSGroup.(1 point)
+(sum of squares between groups)
+
+```{r Secion 2.2, include=TRUE}
+
+group_means <- tapply(csf_data$Ab42, csf_data$Group, mean)
+SSGroup <- sum((group_means-mean(csf_data$Ab42))^2*table(csf_data$Group))
+print(SSGroup)
+
+```
+Calculate SStot.(1 point)
+(total sum of squares)
+
+```{r Secion 2.3, include=TRUE}
+
+SSTot <- sum((csf_data$Ab42-mean(csf_data$Ab42))^2)
+print(SSTot)
+
+```
+Calculate SSerror.(1 point)
+(residual sum of squares)
+
+```{r Secion 2.4, include=TRUE}
+
+SSError <- SSTot-SSGroup
+print(SSError)
+
+```
+Calculate MSGroup.(1 point)
+(mean square between groups)
+
+```{r Secion 2.5, include=TRUE}
+
+MSGroup <- SSGroup/(length(unique(csf_data$Group))-1)
+print(MSGroup)
+
+```
+Calculate MSError.(1 point)
+(mean square within groups)
+
+```{r Secion 2.6, include=TRUE}
+
+MSError <- SSError/(nrow(csf_data)-length(unique(csf_data$Group)))
+print(MSError)
+
+```
+Calculate the F-statistic.(1 point)
+
+```{r Secion 2.7, include=TRUE}
+
+F_statistic <- MSGroup/MSError
+print(F_statistic)
+
+```
+Calculate the p-value(1/2 point)and check it against the result of anova.(1/2 point)
+
+```{r Secion 2.8, include=TRUE}
+
+p_value <- 1-pf(F_statistic, (length(unique(csf_data$Group))-1), (nrow(csf_data) - length(unique(csf_data$Group))))
+print(p_value)
+
+summary(aov(Ab42~Group, data=csf_data))
+
+```
+

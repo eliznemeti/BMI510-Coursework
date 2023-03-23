@@ -1,0 +1,270 @@
+---
+title: "Midterm 1"
+author: "J. Lucas McKay"
+date: "2/20/2023"
+output: html_document
+student: "Elizabeth Nemeti"
+
+---
+
+<style>div.soln { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}</style>
+
+***
+Section 1: tibbles and t-tests
+
+Questions A and B
+
+```{r setup, include=FALSE}
+setwd("/Users/elizabethnemetichipkes/Desktop/R for BMI510")
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+# A
+fall_data <- read.csv("S1.csv", header=TRUE, sep=",") %>%
+  as_tibble() %>%
+  filter(Patient != "bat112") %>%
+  select(Age, Sex, num_falls_6_mo) %>%
+  drop_na()
+View(fall_data)
+
+# B
+summary_sex <- fall_data %>%
+  group_by(Sex) %>%
+  summarize(observation_number = n(),
+            Age_mean = mean(Age),
+            Falls_mean = mean(num_falls_6_mo),
+            Age_sd = sd(Age),
+            Falls_sd = sd(num_falls_6_mo))
+
+summary_overall <- fall_data %>%
+  summarize(observation_number = n(),
+            Age_mean = mean(Age, na.rm = TRUE),
+            Falls_mean = mean(num_falls_6_mo, na.rm = TRUE),
+            Age_sd = sd(Age, na.rm = TRUE),
+            Falls_sd = sd(num_falls_6_mo, na.rm = TRUE))
+
+summary <- bind_rows(summary_sex, summary_overall %>% mutate(Sex = "Overall"))
+
+View(summary)
+```
+
+Question C
+```{r setup, include=FALSE}
+
+# Calculate the difference in sample means between the two groups (male, female)
+Age_mean_F <- summary_sex %>% 
+  filter(Sex == "Female") %>% 
+  pull(Age_mean)
+
+Age_mean_M <- summary_sex %>% 
+  filter(Sex == "Male") %>% 
+  pull(Age_mean)
+
+difference <- Age_mean_F - Age_mean_M
+difference
+
+# Calculate the pooled variance
+count_F <- summary %>% filter(Sex == "Female") %>% pull(observation_number) # using pull to get the relevant data from the tibble without $
+sd_F <- summary %>% filter(Sex == "Female") %>% pull(Age_sd)
+count_M <- summary %>% filter(Sex == "Male") %>% pull(observation_number)
+sd_M <- summary %>% filter(Sex == "Male") %>% pull(Age_sd)
+pooled_variance <- sqrt(((count_F - 1) * sd_F^2 + (count_M - 1) * sd_M^2) / (count_F + count_M - 2))
+pooled_variance
+
+# Calculate the appropriate test statistic T 
+t_statistic = difference / (pooled_variance * sqrt(1/count_F + 1/count_M))
+t_statistic
+
+# Find the area under the t-density corresponding to H0. Do these data seem likely under the null?
+df <- count_F + count_M - 2 # get dfs for pvalue calc
+p_value <- 2 * pt(-abs(t_statistic), df) # get p value for for t density
+
+# Compare your result to the results of t.test with var.equal = TRUE.
+t.test(Age ~ Sex, data = fall_data, var.equal = TRUE)
+
+```
+
+The data is likely under the null because first, the t statistic is close to 0 indicating little difference in the means, and second because the p value is greater than 0.05.
+
+After doing t.est, we have the same values of t = -0.83544, df = 58, p-value = 0.4069 that we computed manually beforehand. The means are also the same as the original tibble at 66.45333 for females and 68.07667 for males. Therefore, again the null hypothesis is most likely to be true. 
+
+***
+Section 2: Likelihoods
+
+Question A.
+
+```{r setup, include=FALSE}
+
+# Use a grid search process to calculate the log likelihood
+lambda_set <- seq(1, 10, by = 0.01) # grid
+
+ll_poisson_dist <- function(lambda, x) {
+  sum(dpois(x, lambda, log = TRUE))
+}
+
+ll_values <- map_dbl(lambda_set, ~ll_poisson_dist(.x, fall_data$num_falls_6_mo))
+
+# Identify the maximum likelihood estimate
+MLE1 <- lambda_set[which.max(ll_values)]
+
+# Plot log-likelihood as a function of lambda
+ggplot(tibble(lambda_set, ll_values), aes(lambda_set, ll_values)) +
+  geom_line() +
+  xlab("Lambda") +
+  ylab("Log-Likelihood") +
+  geom_vline(xintercept = MLE1, color = "darkblue")
+
+ll_MLE1 <- ll_poisson_dist(lambda_max, fall_data$num_falls_6_mo)
+
+```
+
+Question B. 
+
+```{r setup, include=FALSE}
+
+ggplot(fall_data, aes(num_falls_6_mo)) +
+  geom_histogram(binwidth = 8, color = "darkgrey", fill = "darkblue") +
+  labs(x = "Number of falls in 6 months", y = "Observations", title = "Histogram of Number of Falls over 6 Months")
+
+```
+There are some outliers, there is 1 woman who has 50 falls, and one other woman who has 180 falls whilst the other observations across men and women are 0-3 falls. 
+
+Question C. 
+
+```{r setup, include=FALSE}
+fall_data_clean <- fall_data %>% 
+  filter(num_falls_6_mo < 50)
+
+# Try values for lambda between 0.1 and 10; use a step size of 0.01
+lambda_set <- seq(0.1, 10, by = 0.01) 
+
+ll_poisson_dist <- function(lambda, x) {
+  sum(dpois(x, lambda, log = TRUE))
+}
+
+ll_values <- map_dbl(lambda_set, ~ll_poisson_dist(.x, fall_data_clean$num_falls_6_mo))
+
+# Identify the maximum likelihood estimate of lambda 
+MLE2 <- lambda_set[which.max(ll_values)]
+
+ggplot(tibble(lambda_set, ll_values), aes(lambda_set, ll_values)) +
+  geom_line() +
+  xlab("Lambda") +
+  ylab("Log-Likelihood") +
+  geom_vline(xintercept = MLE2, color = "darkblue")
+
+```
+
+Question D. 
+
+1.Calculate the log likelihood of the cleaned-up dataset
+
+```{r setup, include=FALSE}
+
+ll_MLE2 <- ll_poisson_dist(lambda_max, fall_data_clean$num_falls_6_mo)
+
+```
+
+2. Which log likelihood is higher?
+
+MLE2 is higher at -236.5297, whereas MLE1 is lower at -794.3824. 
+
+Section 3: Empirical distributions and ranks
+
+Question A.
+
+```{r setup, include=FALSE}
+
+santos_missing_money <- 365000
+missing_percent <- 0.12
+total_campaign_expenditures <- round((santos_missing_money/missing_percent), 2)
+cat("Santos' total campaign expenditures were $", total_campaign_expenditures)
+
+```
+
+Question B.
+
+```{r setup, include=FALSE}
+
+spending <- read.csv("campaign-spending.csv", header=TRUE, sep=",") %>%
+  as_tibble() %>%
+  select(Representative,Total.Spent) %>%
+  bind_rows(tibble(Representative = "George Santos (R-NY)", Total.Spent = total_campaign_expenditures))
+View(spending)
+
+```
+
+Question C.
+
+```{r setup, include=FALSE}
+
+# Calculate the rank of each observation of Total Spent and save it as a new column in spending, Rank
+spending <- spending %>% 
+  mutate(Rank = rank(Total.Spent))
+View(spending)
+
+# How many representatives spent less than Santos?
+cheaper_campaigns <- filter(spending, Total.Spent < total_campaign_expenditures)
+cheaper_campaigns_count <- nrow(cheaper_campaigns)
+cat("The number of candidates who spent less than Santos were", cheaper_campaigns_count)
+
+# What proportion of the representatives spent less than Santos?
+proportion <- cheaper_campaigns_count/nrow(spending)
+cat("The proportion of candidates who spent less than Santos were", proportion)
+
+```
+
+Question D.
+
+```{r setup, include=FALSE}
+
+spending_ecdf <- ecdf(spending$Total.Spent) # calc ecdf first
+
+ggplot(spending, aes(Total.Spent)) +
+  stat_ecdf() +
+  geom_vline(xintercept = total_campaign_expenditures, color = "red") +
+  geom_hline(yintercept = spending_ecdf(total_campaign_expenditures), color = "red") +
+  scale_x_continuous(limits = c(0, 2e+07)) +
+  xlab("Total Spent") +
+  ylab("CDF")
+
+```
+
+Question E.
+
+```{r setup, include=FALSE}
+
+undocumented__spending_ecdf <- ecdf(spending$Total.Spent*(ifelse(spending$Representative == "George Santos (R-NY)", 0.12, 0.02))) # if G Santos then 12%
+
+ggplot(spending, aes(Total.Spent * (ifelse(Representative == "George Santos (R-NY)", 0.12, 0.02)))) +
+  stat_ecdf() +
+  geom_vline(xintercept = total_campaign_expenditures * 0.12, color = "red") +
+  geom_hline(yintercept = undocumented__spending_ecdf(total_campaign_expenditures * 0.12), color = "red") +
+  xlab("Undocumented Spending") +
+  ylab("CDF") +
+  scale_x_continuous(limits = c(0, 4e+05)) # set because this is around the maximum
+
+```
+In this plot we can see Santos' undocumented spending highlighted in red, as it approaches 365,000, far more than the 2% of the other candidates. 
+
+Question F.
+
+```{r setup, include=FALSE}
+
+# How many campaigns had more total spending than the Santos campaign?
+moreexpensive_campaigns <- filter(spending, Total.Spent > total_campaign_expenditures)
+moreexpensive_campaigns_count <- nrow(moreexpensive_campaigns)
+cat("The number of candidates who spent more than Santos was:", moreexpensive_campaigns_count)
+
+# How many campaigns had more undocumented spending than the Santos campaign?
+
+more_undocumented_spending <- filter(spending, Total.Spent * 0.02 > missing_money)
+more_undocumented_count <- nrow(more_undocumented_spending)
+cat("The number of campaigns with more undocumented spending than Santos was:", more_undocumented_count)
+
+```
+
+Which is more atypical - Santos’ total spending or his undocumented spending?
+
+116 candidates had more total spending than Santos whereas 6 candidates had more undocumented spending than Santos, therefore his undocumented spending is far more atypical. 

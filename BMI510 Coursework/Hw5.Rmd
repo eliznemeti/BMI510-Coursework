@@ -1,0 +1,254 @@
+---
+title: "Homework 5"
+author: "J. Lucas McKay"
+date: "2/13/2023"
+output: html_document
+---
+
+<style>div.soln { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}</style>
+
+```{r setup, include=FALSE, echo=T}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, collapse = T)
+library(tidyverse)
+```
+
+***
+1. Using only `rnorm`, draw a sample of 1000 random numbers from $\chi^2_7$. Plot a histogram. **1 point**
+
+```{r setup, include=FALSE}
+
+rand <- matrix(rnorm(7 * 1000), ncol = 7) # 7 independent standard normal random variables
+sample <- rowSums(rand^2) # obtain sample from chi-squared distribution
+hist(sample, breaks = 30, col = "blue", xlab = "Value", main = expression(paste(chi[7]^2, " Distribution")))
+
+```
+
+***
+2. Plot the log-likelihood of the sample assuming a $\chi^2_{df}$ distribution under candidate `df` values from 1 to 14. **1 point**
+
+```{r setup, include=FALSE}
+
+# create function to calculate a log-likelihood
+df <- 14
+
+log_likelihood_func <- function(df, sample) {
+  n <- length(sample)
+  k <- df/2
+  log_likelihood_singular <- -(n*k)*log(2) - n*lgamma(k) + (k-1)*sum(log(sample)) - (1/2)*sum(sample)
+  return(log_likelihood_singular)
+}
+
+# calculating the log-likelihoods for degrees of freedom ranging from 1 to 14
+df_vals <- seq(1, 14)
+log_likelihood <- sapply(df_vals, log_likelihood_func, sample = sample) 
+
+#plotting histogram
+plot(df_vals, log_likelihood, type = "l", xlab = "Degrees of Freedom", ylab = "Log-Likelihood", main = "Log-Likelihood for Chi-Squared Distribution")
+
+```
+
+***
+3. Using only `rnorm` (and potentially your answer from question 1) draw a sample of 1000 random numbers from $t_7$. Plot a histogram. **1 point**
+
+```{r setup, include=FALSE}
+
+# setting sample size
+n <- 1000 
+
+# Generate a sample of 1000 random numbers from a standard normal distribution using rnorm
+rand_nums <- rnorm(n)
+
+# generate random numbers from a chi-squared distributionn
+rchi <- function(df) {
+  sum(rnorm(df)^2)
+}
+
+# sample of random numbers from the chi-squared distribution
+rand_chi_nums <- replicate(n, rchi(7))
+
+# generate sample of 1000 random numbers from a t-distribution 
+t_dist <- rand_nums / sqrt(rand_chi_nums/7)
+
+# plotting histogram
+hist(t_dist, breaks = 30, col = "blue", xlab = "T distibution", main = expression(paste("Histogram of ", t_dist[7], " Random Sample")))
+
+```
+
+***
+4. Plot the log-likelihood of your sample assuming a $t_{df}$ distribution under candidate `df` values from 1 to 14. **1 point**
+
+```{r setup, include=FALSE}
+
+df <- seq(1, 14)
+sample <- 1000
+
+log_likelihood_func <- function(df, sample) {
+  n <- length(sample)
+  k <- df
+  log_likelihood_singular <- -(n*(k+1)/2)*log(1+(1/k)*sum(sample^2)) + (-(n/2))*log(pi) - lgamma((k+1)/2) + ((k+1)/2)*sum(log(1 + (1/k)*sample^2))
+  return(log_likelihood_singular)
+}
+
+# calculating the log-likelihoods for degrees of freedom ranging from 1 to 14
+log_likelihood <- sapply(df, log_likelihood_func, sample = sample)
+
+#plotting histogram
+plot(df, log_likelihood, type = "l", xlab = "Degrees of Freedom", ylab = "Log-Likelihood", main = "Log-Likelihood for t-distribution")
+
+```
+***
+5. Using only `rnorm` (or potentially your answer from question 1), draw a sample of 1000 random numbers from $F_{4,4}$. Plot a histogram. **1 point**. 
+
+```{r setup, include=FALSE}
+
+#using only rnorm
+set1 <- rnorm(1000, mean = 0, sd = 1)
+set2 <- rnorm(1000, mean = 0, sd = 1)
+set3 <- rnorm(1000, mean = 0, sd = 1)
+set4 <- rnorm(1000, mean = 0, sd = 1)
+
+# Compute the F ratio
+f_ratio <- ((set1^2 + set2^2)/(2)) / ((set3^2 + set4^2)/(2))
+
+# Plot the histogram
+# breaks at 20 so you see frequency up to 1000
+
+hist(f_ratio, breaks = 20, col = "blue", xlab = "Sample Values", main = "Sample from F-distribution")
+
+```
+
+***
+6. Plot the log-likelihood of your sample assuming a $F_{df_1,df_2}$ distribution with $df_1$ fixed at 4 under candidate `df_2` values from 1 to 14. **1 point**
+
+```{r setup, include=FALSE}
+
+df1 <- 4
+df2 <- seq(1, 14)
+sample <- 1000
+
+log_likelihood_func <- function(df2, sample) {
+  n <- length(sample)
+  k1 <- df1/2
+  k2 <- df2/2
+  log_likelihood_singular <- -(n*(k1+k2))*log(2) - n*lgamma(k1) - n*lgamma(k2) + (k1-1)*sum(log(sample)) + (k2-1)*sum(log(1+((k1*sample)/(k2)))) - ((k1+k2)*sum(log(1+((sample/k2))))) - (k1*log(k1)) - (k2*log(k2))
+  return(log_likelihood_singular)
+}
+
+log_likelihood <- sapply(df2, log_likelihood_func, sample = sample)
+
+plot(df2, log_likelihood, type = "l", xlab = "df_2", ylab = "Log-Likelihood", main = "Log-Likelihood for F(4,df_2) distribution")
+
+
+```
+
+***
+7. Write a short function to convert a test statistic $x$ into the area under the $z$-density for values $≥|x|$. This area is the P value. The function should take $x$ as an argument. **(1 point)**
+
+```{r setup, include=FALSE}
+
+# function to convert the test statistic into P value
+pvalue_convert <- function(x) {
+  p <- 1 - pnorm(abs(x))
+  return(p)
+}
+
+```
+
+
+***
+8. Write a short function to convert a test statistic $x$ into the area under the $t_{df}$-density for values $≥|x|$. This area is the P value. The function should take $x$ and $df$ as arguments. **(1 point)**
+
+```{r setup, include=FALSE}
+
+tdist_pvalue_convert <- function(x, df) {
+  p <- 1 - pt(abs(x), df) # where pt func is for cumulative dist for t dist
+  return(p)
+}
+
+```
+
+***
+9. Simulate the results of a cancer trial.
+
+Let's say that in a double-blind randomized clinical breast cancer trial, the primary outcome is *tumor diameter*.
+At study end, the average tumor reduction in tumor size was 3 ± 1 cm (mean ± sd) in the treatment group and 0 ± 1 cm (mean ± sd) in the control group.
+Simulate reduction values for N = 12 treatment and N = 12 control participants. Use `t.test` to whether the reductions differ between groups.
+Compare the results when using the default options and when using `var.equal = T`. **(1 point)**
+
+```{r setup, include=FALSE}
+
+# set seed to get the same values for Q10 comparison
+set.seed(42)
+
+# Simulate reduction values
+treatment_group <- 12
+control_group <- 12
+
+# average tumor reduction in tumor size was 3 ± 1 cm (mean ± sd)
+treatment_reductions <- rnorm(treatment_group, mean = 3, sd = 1)
+# 0 ± 1 cm (mean ± sd) in the control group
+control_reductions <- rnorm(control_group, mean = 0, sd = 1)
+
+# Use `t.test` for whether the reductions differ between groups
+# using default options
+reduction_vals <- t.test(treatment_reductions, control_reductions)
+reduction_vals
+
+# Compare the results when using the default options and when using `var.equal = T`
+reduction_vals_varequal <- t.test(treatment_reductions, control_reductions, var.equal = T)
+reduction_vals_varequal
+
+```
+
+Default where Var.equal is not true
+
+Welch Two Sample t-test
+data:  treatment_reductions and control_reductions
+t = 7.2188, df = 19.469, p-value = 6.442e-07
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval: 2.164074 3.927354
+sample estimates:
+mean of x  mean of y 
+2.9902808 -0.0554334 
+
+Var.equal = True
+
+Two Sample t-test
+data:  treatment_reductions and control_reductions
+t = 7.2188, df = 22, p-value = 3.111e-07
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ 2.170717 3.920711
+sample estimates:
+ mean of x  mean of y 
+ 2.9902808 -0.0554334 
+ 
+The variances of the treatment and control groups were not equal, so using the default option where var.equal = F is the appropriate choice, as the var.equal = True option induces error. 
+
+***
+10. Recreate the functionality of `t.test`. Use base R functions (e.g., `length`, `mean`, `var`, `sqrt`) and `pt` to recreate the t statistic and p value from problem 9 without `t.test` using `var.equal=TRUE`. **(1 point)**
+
+```{r setup, include=FALSE}
+# set seed to get the same values as Q9 
+set.seed(42)
+
+# using variables from Q9
+treatment_group <- 12
+control_group <- 12
+treatment_reductions <- rnorm(treatment_group, mean = 3, sd = 1)
+control_reductions <- rnorm(control_group, mean = 0, sd = 1)
+
+# recreating t test and p value
+t_statistic <- (mean(treatment_reductions) - mean(control_reductions)) / sqrt((var(treatment_reductions)/treatment_group) + (var(control_reductions)/control_group))
+
+pvalue <- 2 * pt(-abs(t_statistic), df = treatment_group + control_group - 2)
+
+cat("The t statistic is:", t_statistic)
+cat("The p-value is:", pvalue)
+
+```
+
+This results in the same t statistic and p value as in Q9 where var.equal = True. 
+
+Since rnorm is generating a different set of numbers each time, I set the seed so you can see that Q10 does actually reproduce t test.
+

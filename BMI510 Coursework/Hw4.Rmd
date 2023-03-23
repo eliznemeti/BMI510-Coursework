@@ -1,0 +1,250 @@
+---
+title: "Homework 4"
+author: "J. Lucas McKay"
+date: "February 6, 2023"
+output: html_document
+---
+
+<style>div.soln { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, collapse = T)
+```
+
+***
+1. There is a dataset of clinical variables and self-reported fall history from people with Parkinson's disease available at [https://jlucasmckay.bmi.emory.edu/global/mckay_2021/S1.csv]. Identify the sample mean and sample standard deviation of the `Age` variable. Exclude any cases under 35 years old. **1 point**
+
+```{r setup, include=FALSE}
+
+fall_data <-read.csv("S1.csv", header=TRUE, sep=",")
+View(fall_data)
+
+fall_data = fall_data[fall_data$Age >= 35, ]
+View(fall_data)
+mu = mean(fall_data$Age)
+cat("The sample mean of ages 35 and up:", round(mu, 1))
+sd = sd(fall_data$Age)
+cat("The sample standard deviation of ages 35 and up:", round(sd, 1))
+
+```
+
+***
+2. Calculate the likelihood of the estimates for the mean and standard deviation you have obtained given the sample. Assume a normal distribution as you sweep the estimate of average age through ±2 years. 
+Specifically, create a function `Lik(a)` that returns the likelihood of the data given an estimate of the population mean age `a` **(1/2 point)** and plot the likelihood as a function of `a` as you sweep it over ±2 years. **(1/2 point)**
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+
+fall_data <- read.csv("S1.csv", header = TRUE, sep = ",")
+fall_data = fall_data[fall_data$Age >= 35, ]
+a = mean(fall_data$Age)
+sd = sd(fall_data$Age)
+
+# defining our function Lik(a)
+Lik <- function(a) {
+  fall_data <- dnorm(fall_data$Age, a, sd)
+  lik <- prod(fall_data)
+  return(lik)
+}
+
+#vectorizing Lik to transform into a function that accepts a vector argument
+Lik_v <- Vectorize(Lik) 
+
+# curve for parabola, making our plot
+curve(Lik_v, from = a - 2, to = a + 2, xlab = "Estimated Mean Age", ylab = "Likelihood", type = "l")
+
+```
+
+***
+3. Now plot the *log* likelihood as you sweep the estimate of average age through ±2 years. **(1 point)** *(Note that you have to use a sum, not a product, here.)*
+
+```{r setup, include=FALSE}
+
+LogLik <- function(a) {
+  dnormData <- dnorm(fall_data$Age, a, sd)
+  logLik <- sum(log(dnormData))
+  return(logLik)
+}
+
+LogLik <- Vectorize(LogLik) 
+
+curve(LogLik, from = a - 2, to = a + 2, xlab = "Estimated Mean Age", ylab = "Log Likelihood", type = "l")
+
+```
+
+***
+4. Using the answers for the last two questions, use a grid-based approach to find the maximum likelihood estimator for `a`.  **(1/2 point)** Do the same for the maximum log-likelihood estimator. **(1/2 point)** Do they differ?
+
+```{r setup, include=FALSE}
+
+MLE_lik <- optimize(Lik, c(35, 84), maximum = TRUE)
+MLE_lik
+
+MLE_log <- optimize(LogLik, c(35, 84), maximum = TRUE)
+MLE_log
+
+```
+They do not differ, both are 67.36935. 
+
+***
+5. One of the things we noted was that using the sample standard deviation to estimate the population standard deviation can bias the estimate. Therefore, we often see `N-1` normalization in the standard deviation equation instead of `N`. Calculate and compare the likelihood of the data under the biased and unbiased estimators for the standard deviation. Which estimate for the standard deviation is larger? Which estimate is more likely? **(1 point)**
+
+```{r setup, include=FALSE}
+
+# biased version
+mu <- mean(fall_data$Age)
+sd <- sd(fall_data$Age)
+Lik_biased <- function(fall_data, mu, sd) {
+  fall_data_norm <- dnorm(fall_data, mu, sd)
+  lik <- prod(fall_data_norm)
+  return(lik)
+}
+Lik_biased_value <- Lik_biased(fall_data$Age, mu, sd)
+Lik_biased_value
+
+#unbiased version
+n <- nrow(fall_data)
+
+sd <- sqrt(var(fall_data$Age)*(n - 1)/n)
+Lik_unbiased <- function(fall_data, mu, sd) {
+  fall_data_norm <- dnorm(fall_data, mu, sd)
+  lik <- prod(fall_data_norm)
+  return(lik)
+}
+Lik_unbiased_value <- Lik_unbiased(fall_data$Age, mu, sd)
+Lik_unbiased_value
+
+```
+
+***
+6. Let `X` be a continuous random variable with the piecewise-defined probability density function $f(x)$ equal to 0.75, $0≤x≤1$, 0.25, $2≤x≤3$, 0 elsewhere. Plot the density $f(x)$. **(1 point)**
+
+```{r setup, include=FALSE}
+
+library(ggplot2)
+x <- seq(from = -1, to = 4, by = 0.01) # to give space around
+y <- ifelse(x >= 0 & x <= 1, 0.75, ifelse(x >= 2 & x <= 3, 0.25, 0)) # setting intervals
+df <- data.frame(x, y)
+ggplot(df, aes(x, y)) + 
+  geom_line() +
+  ggtitle("Piecewise-defined probability density plot") +
+  theme_classic()
+
+```
+
+***
+7. Plot the cumulative density $F(x)$. **(1 point)**
+
+```{r setup, include=FALSE}
+
+x <- seq(from = -1, to = 4, by = 0.01) # to give space around
+y <- ifelse(x >= 0 & x <= 1, 0.75, ifelse(x >= 2 & x <= 3, 0.25, 0)) # setting intervals
+y_cumulative <- cumsum(y) * 0.01 # calculate cumulative density
+df <- data.frame(x, y_cumulative)
+ggplot(df, aes(x, y_cumulative)) + 
+  geom_line() +
+  ggtitle("Piecewise-defined cumulative density plot") +
+  theme_classic()
+
+```
+ 
+***
+8. Using the sample redcap dataset available at [https://jlucasmckay.bmi.emory.edu/global/bmi510/gait.csv], identify the unique patients and summarize the ratio of women to men. Also report how many missing values there are. (The sex variable codes 0 for male, 1 for female.) **(1/2 point)** Then, calculate (and plot) the (Pearson's) correlation between gait speed and cadence. **(1/2 point)**
+
+```{r setup, include=FALSE}
+
+gait_data <-read.csv("gait.csv", header=TRUE, sep=",")
+View(gait_data)
+
+unique_patients <- unique(gait_data$record_id) # identify the unique patients
+unique_patients
+count_unique_patients <- length(unique_patients)
+count_unique_patients
+
+missing_values <- sum(is.na(gait_data)) # report missing values
+missing_values
+
+# finding ratio
+male_count <- sum(gait_data$sex == 0, na.rm = TRUE) #  number of men
+male_count
+female_count <- sum(gait_data$sex == 1, na.rm = TRUE) # number of women
+female_count
+ratio_female_to_male <- female_count / male_count
+ratio_female_to_male
+
+# Pearson's 
+cadence <- gait_data$cadence
+filt_cadence <- cadence[!is.na(cadence)] # remove Nans
+any_missing <- sum(is.na(filt_cadence)) # any Nans left?
+any_missing
+
+speed <- gait_data$speed
+filt_speed <- speed[!is.na(speed)] # remove Nans
+any_missing <- sum(is.na(filt_speed)) # any Nans left?
+any_missing
+
+correlation <- cor(filt_cadence, filt_speed, method = "pearson")
+correlation # 0.572
+
+# Plot the Pearson's correlation using ggplot2
+ggplot(gait_data, aes(speed, cadence)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  ggtitle(paste("Pearson's correlation for cadence and speed in gait")) +
+  theme_classic()
+```
+There are 4,282 missing values. The ratio is 0.66 for women to men. There are 935 unique patients. 
+
+***
+9. We have not discussed (at least at length) joint frequency functions / probability mass functions, but they are a generalization of probability mass functions for a single random variable. Say the joint frequency function of two discrete random variables, X and Y, is as follows:
+
+X   Y=1   Y=2   Y=3   Y=4
+-   ---   ---   ---   ---
+1   0.10  0.05  0.02  0.02
+2   0.05  0.20  0.05  0.02
+3   0.02  0.05  0.20  0.04
+4   0.02  0.02  0.04  0.10
+
+These data are available at [https://jlucasmckay.bmi.emory.edu/global/bmi510/joint_frequency.csv] Columns 2 through 4 are named Y1, Y2, Y3, and Y4. Completely melt the data **(1/2 point)** and extract numerical values from the codes `Y1`, `Y2`, etc. **(1/2 point)**
+
+```{r setup, include=FALSE}
+
+library(reshape2) # for melt function
+
+joint_frequency <-read.csv("joint_frequency.csv", header=TRUE, sep=",")
+View(joint_frequency)
+
+df <- data.frame(joint_frequency)
+melt_df <- melt(df, id.vars = "X") # melt df to create long format from wide format
+melt_df$value # extract the numerical values from codes (here it's all of them)
+# here it's done separately 
+melt_df %>% filter(variable == "Y1") %>% select(value)
+melt_df %>% filter(variable == "Y2") %>% select(value)
+melt_df %>% filter(variable == "Y3") %>% select(value)
+melt_df %>% filter(variable == "Y4") %>% select(value)
+
+View(melt_df)
+
+```
+
+***
+10. Find and plot the marginal frequency functions of X and Y. In the table above, these would be the row and column sums. (The margins.)  To what do the frequencies sum? **(1 point)**
+
+```{r setup, include=FALSE}
+joint_frequency
+X_margfreq <- subset(joint_frequency, select = c(Y1, Y2, Y3, Y4))
+X_margfreq <- colSums(X_margfreq)
+X_margfreq
+
+Y_margfreq <- subset(joint_frequency, select = c(Y1, Y2, Y3, Y4))
+Y_margfreq <- rowSums(Y_margfreq)
+Y_margfreq
+
+par(mfrow = c(1, 2))
+barplot(X_margfreq, main = "Marginal Frequency Function of X")
+barplot(Y_margfreq, main = "Marginal Frequency Function of Y")
+
+```
+
+The frequencies will have a sum of 1 since they are representing probabilities, and as we know all probabilities for a given random variable need to equal 1.

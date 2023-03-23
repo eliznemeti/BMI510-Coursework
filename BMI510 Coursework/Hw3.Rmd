@@ -1,0 +1,256 @@
+---
+title: "HW3 Solutions"
+author: "J. Lucas McKay"
+date: "1/30/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, collapse = T)
+library(tidyverse)
+```
+
+<style>div.soln { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}</style>
+
+***
+1. Suppose that `X` is a discrete random variable with `P(X = 0) = 0.25`, `P(X = 1) = 0.125`, `P(X = 2) = 0.125`, and `P(X = 3) = 0.5`. Use `ggplot2` to graph the frequency function *(1 point)* and the cumulative distribution function *(1 point)* of `X`.
+
+```{r }
+library(ggplot2)
+
+#defining our variables
+x <- c(0,1,2,3)
+probability <- c(0.25, 0.125, 0.125, 0.5)
+df <- data.frame(x, probability)
+
+# plotting frequency function
+ggplot(df, aes(x, probability)) + 
+  geom_col(width=0.3, color="black", size=0.1) +
+  xlab("X") +
+  ylab("Probability") +
+  ggtitle("Frequency Function of X") +
+  theme_classic()
+
+# plotting cumulative distribution function
+df$cumulative_probability <- cumsum(probability)
+
+ggplot(df, aes(x, cumulative_probability)) + 
+  geom_step(color="black", size=0.5) +
+  xlab("X") +
+  ylab("Cumulative Probability") +
+  ggtitle("Cumulative Distribution Function of X") +
+  theme_classic()
+
+```
+
+***
+2. The following table shows the cumulative distribution of a discrete random variable `x`. Calculate and graph the frequency function. *(1 point)* (NB: try `diff`)
+
+```{r}
+X = seq(0,5)
+cdf = c(0,0.1,0.3,0.7,0.8,1.0)
+n = 200
+`Cumulative Frequency` = cdf*n
+tibble(X,`Cumulative Frequency`) |> knitr::kable() |> kableExtra::kable_styling(full_width = F)
+```
+
+```{r }
+X = seq(0,5)
+cdf = c(0,0.1,0.3,0.7,0.8,1.0)
+n = 200
+`Cumulative Frequency` = cdf*n
+
+# cumulative distribution function = cdf
+frequency = diff(cdf) # subtract consecutive values in cdf
+df = data.frame(X[-length(X)], frequency) 
+
+# plotting the frequency function
+ggplot(df, aes(X[-length(X)], y = frequency)) +
+  geom_bar(stat = "identity") +
+  xlab("X") +
+  ylab("Frequency") +
+  ggtitle("Frequency Function of X") +
+  theme_classic()
+
+```
+***
+3. The Boolean expression `x==y` does not work well for floating-point numbers in that rounding errors may produce a FALSE answer. Compare it with the functions `all.equal` and `identical`.
+
+  * Examine the behavior when you compare the approximation to $\pi$ `pi_user = 3.14159` to the constant `pi` built in to R using the `identical` function. *(1/3 point)* 
+  * Examine the behavior when you use the `all.equal` function. *(1/3 point)* 
+  * Examine the behavior when you use the `all.equal` function, specifying the tolerance as `1e-5`. *(1/3 point)* 
+  
+```{r}
+#using identical results FALSE
+pi_user = 3.14159
+identical(pi_user, pi)
+
+#using identical results in Mean relative difference: 8.446646e-07
+all.equal(pi_user, pi)
+
+#using identical results in TRUE
+all.equal(pi_user, pi, tolerance = 1e-5)
+```
+
+***
+4. Show that, when `a` is a scalar and `x` is a vector (say, `1:12`), `match(a,x)` is equivalent to `min(which(x == a))`. *(1/3 point)* Then try the infix operator `%in%`. What happens when you say `x %in% 4`? *(1/3 point)* How about `x %in% c(5,10)`? *(1/3 point)*
+
+```{r}
+a <- 9
+x <- 1:12
+
+match(a, x) # results in 9
+min(which(x == a)) # results in 9
+x %in% 4 # reports 1 instance of true, and 11 instances of FALSE
+x %in% c(5, 10) # 2 instances of true and 10 instances of FALSE
+
+```
+
+***
+5. We did an earlier problem to show that approximately normally distributed numbers could be produced from those on the unit interval. A more modern transformation is the Box-Muller transformation. The Box-Muller transformation takes two samples from the uniform distribution on the interval [0, 1] and maps them to two standard, normally distributed samples. Create a function `BoxMuller(n)` that creates `n` samples from the standard normal distribution, *(1/2 point)* and show that `mean(BoxMuller(500)) == 0` and `var(BoxMuller(500)) == 1`. *(1/2 point)*
+
+```{r}
+BoxMuller <- function(n){
+  x1 <- runif(n, min = 0, max = 1) # 1st random variable
+  x2 <- runif(n, min = 0, max = 1) # 2nd random variable
+  x1_trans <- sqrt(-2*log(x1))*cos(2*pi*x2) # 1st random variable transformed for 
+  x2_trans <- sqrt(-2*log(x1))*sin(2*pi*x2) # 2nd random variable transformed
+  c(x1_trans, x2_trans)[1:n] # return n elements
+}
+
+mean(BoxMuller(500))
+var(BoxMuller(500)) 
+
+```
+The mean is approximated around 0, variance is approximated around 1. Since this could be a small sample we won't have a perfect 0 or 1, unless we had a very large sample.
+
+***
+6. Use simulation and `ggplot2` (with `geom_density`) to plot the probability density function of the output of your `BoxMuller()` function. *(1/2 point)* (Use, say, 10,000 random samples.) Plot the output of `rnorm()` with the same sample size for comparison.*(1/2 point)*
+
+  * *EXTRA 1 POINT:* Plot both of these on the same graph. (You may have to `pivot_longer`, which we will see soon.)
+
+```{r}
+library(tidyr) # for pivot_longer function to change dat from wide to long format
+n <- 10000 # set 10,000 random samples
+box_muller <- BoxMuller(n) # output of Box-Muller function
+rnorm_samples <- rnorm(n) # output of rnorm
+
+df <- data.frame(box_muller, rnorm_samples) %>% # need to make df for pivot_longer
+pivot_longer(cols = c(box_muller, rnorm_samples), names_to = "sample_type", values_to = "value")
+
+ggplot(df, aes(x = value, fill = sample_type, color = sample_type)) + 
+  geom_density(alpha = 0.3) +
+  xlab("Sample") +
+  scale_x_continuous(limits = c(-4,4)) + # setting the x axis
+  ylab("Density") +
+  scale_y_continuous(limits = c(0,0.5)) + # setting the y axis
+  scale_fill_manual(values = c("green", "blue")) +
+  scale_color_manual(values = c("green", "blue")) +
+  ggtitle("Probability Density Function Plot of Box-Muller and rnorm Samples") +
+  theme_classic()
+
+```
+
+***
+7. Use simulation and `ggplot2` to plot the cumulative distribution function of the output of your `BoxMuller()` function. *(1 point)*
+
+```{r}
+ggplot(data = NULL, aes(x = box_muller)) +
+  stat_ecdf(aes(box_muller), color = "blue", size = 1) + #CDF of Box muller output
+  scale_x_continuous(limits = c(-4,4)) +
+  scale_y_continuous(limits = c(0,1)) +
+  xlab("Sample") + 
+  ylab("CDF") +
+  ggtitle("Cumulative Distribution Frequency of Box-Muller") +
+  theme_classic()
+```
+
+***
+8. There are many different approximations for the normal distribution. Create a function `Unif12(n)` that generates 12 uniform random variables on the interval [-0.5, 0.5], and calculates their sum. Compare the densities obtained with `rnorm(n)`, `BoxMuller(n)`, *(1/2 point)* and `Unif12(n)`. *(1/2 point)*
+
+```{r}
+# creating function
+Unif12 = function(n) {
+  unif12_samples <- runif(12 * n, min = -0.5, max = 0.5)
+  sum <- rowSums(matrix(unif12_samples, ncol = 12))
+  return(sum)
+}
+
+# plot to visually compare densities
+n <- 10000
+sum <- Unif12(n)
+sum
+
+ggplot() + 
+  geom_density(aes(box_muller), color = "green", fill = "green", alpha = 0.2) +
+  geom_density(aes(rnorm_samples), color = "blue", fill = "blue", alpha = 0.2) +
+  geom_density(aes(sum), color = "purple", fill = "purple", alpha = 0.1) +
+  scale_x_continuous(limits = c(-4,4)) +
+  xlab("Sample") + 
+  ylab("Density") +
+  ggtitle("Density Plot to Compare Box-Muller, rnorm, and Unif12 Samples") +
+  theme_classic()
+```
+
+***
+9. Plot a histogram of $Z^2$, where $Z \approx  N(0,1)$ This is the chi-squared distribution with one degree of freedom. Compare this to a plot using `geom_density()`. What do you notice about the lower limits? *(1/2 point)* What happens when you modulate the parameter `adjust` in geom_density? *(1/2 point)* 
+
+```{r}
+n = 10000
+z <- rnorm(n, mean = 0, sd = 1)
+z_squared <- z^2
+
+# plotting histogram for chi-sqr
+ggplot(data.frame(z_squared), aes(z_squared)) + 
+  geom_histogram(fill = "black", alpha = 0.8, bins = 30) + 
+  xlab("z^2") + 
+  ylab("Frequency") +
+  ggtitle("Histogram of z^2") +
+  scale_y_continuous(limits = c(0,2500)) +
+  scale_x_continuous(limits = c(0,15)) +
+  theme_classic()
+
+# compare to geom_density plot
+ggplot(data.frame(z_squared), aes(x = z_squared)) + 
+  geom_density(fill = "black", alpha = 0.8) + 
+  xlab("z^2") + 
+  ylab("Frequency") +
+  ggtitle("Histogram and Density Plot of z^2") +
+  theme_classic()
+```
+What I notice about the lower limits: They are determined by the minimum and maximum values of z_squared and affect the bandwidth. But the density plot will smooth out the data, to better allow for seeing the distribution shape, so it is more clear for interpretation. 
+
+Modulating "adjust": When you modulate the parameter adjust in geom_density, it affects the smoothing used to create the density plot. Increasing adjust makes the plot smoother, whereas by decreasing adjust it makes the plot less smooth. 
+
+***
+10. The function `ecdf()` produces an "empirical" cumulative distribution function. Simulate 200 samples of data on $N(0,1)$, and compare the results of `ecdf()` to `pnorm()`. *(1/2 point)* Then compare when you simulate 10,000 samples to start with. *(1/2 point)*
+
+```{r}
+
+# Simulating 200 samples
+n = 200
+n_rnorm = rnorm(n) # N(0,1)
+ecdf_200 <- ecdf(n_rnorm) # using ECDF
+ecdf_func = ecdf(n_rnorm)
+ecdf_vals <- ecdf_func(n_rnorm) 
+p_norm_vals <- pnorm(n_rnorm) # using pnorm
+
+# comparing ECDF and CDF at 200 samples
+plot(n_rnorm,ecdf_vals, col = "black", title("Comparison of ECDF and pnorm at 200 samples"))
+par(new=TRUE)
+plot(n_rnorm, p_norm_vals, col = "blue", title("Comparison of ECDF and pnorm at 200 samples"))
+
+n = 10000
+n_rnorm = rnorm(n) # N(0,1)
+ecdf_10000 <- ecdf(n_rnorm) # using ECDF
+ecdf_func = ecdf(n_rnorm)
+ecdf_vals <- ecdf_func(n_rnorm) 
+p_norm_vals <- pnorm(n_rnorm) # using pnorm
+
+# comparing ECDF and CDF at 200 samples
+plot(n_rnorm,ecdf_vals, col = "black", title("Comparison of ECDF and pnorm at 10000 samples"))
+par(new=TRUE)
+plot(n_rnorm,p_norm_vals, col = "blue", title("Comparison of ECDF and pnorm at 10000 samples"))
+
+       
+```

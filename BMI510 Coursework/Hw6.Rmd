@@ -1,0 +1,189 @@
+---
+title: "Homework 6"
+author: "J. Lucas McKay"
+date: "2/20/2023"
+output:
+  pdf_document: default
+  html_document: default
+student: Elizabeth Nemeti
+---
+
+<style>div.soln { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}</style>
+
+***
+```{r setup, include=FALSE}
+setwd("/Users/elizabethnemetichipkes/Desktop/R for BMI510")
+library(tidyverse)
+library(pwr)
+library(ggplot2)
+```
+
+Section 1: Write a wrapper function around power.t.test that maps power to minimum
+sample size.
+
+```{r Secion 1, include=TRUE}
+
+# Q1
+min_samplesize_func <- function(d, power) {
+  power.t.test(d = d, power = power)$n
+}
+
+#Q2
+# define power levels and effect sizes aka d
+power_levels <- c(0.8, 0.9, 0.95)
+d <- seq(0.2, 2.0, 0.001)
+
+df <- expand.grid(d = d, power = power_levels)
+df$n <- mapply(min_samplesize_func, df$d, df$power)
+
+# create linear plot
+linear_plot <- ggplot(df, aes(x = d, y = n, color = factor(power))) +
+  geom_line() +
+  scale_color_manual(values = c("#330000", "red", "#CC9933")) +
+  scale_x_continuous(limits = c(0, 2), breaks = seq(0, 2, 0.5)) +
+  scale_y_continuous(limits = c(0, 600), breaks = seq(0, 600, 200)) +
+  xlab("d") +
+  ylab("n") +
+  theme(panel.background = element_rect(fill = "white"), 
+        panel.grid.major = element_line(color = "darkgrey"), 
+        panel.grid.minor = element_line(color = "darkgrey"),
+        legend.position = "bottom",
+        legend.title = element_blank())
+
+linear_plot
+
+d <- seq(0.2, 2.0, 0.5)
+# create log plot
+log_plot <- ggplot(df, aes(x = d, y = n, color = factor(power))) +
+  geom_line() +
+  scale_color_manual(values = c("#330000", "red", "#CC9933")) +
+  scale_x_continuous(limits = c(0, 2), breaks = seq(0, 2, 0.5)) +
+  scale_y_log10(limits = c(5,800), breaks = c(10, 30, 100, 300)) +
+  xlab("d") +
+  ylab("n") +
+  theme(panel.background = element_rect(fill = "white"), 
+        panel.grid.major = element_line(color = "darkgrey"), 
+        panel.grid.minor = element_line(color = "darkgrey"),
+        legend.position = "bottom",
+        legend.title = element_blank())
+
+log_plot
+
+```
+
+Why does the logarithmic plot have a “staircase” shape for high values of d?
+
+Since this plot has a logarithmic y axis, the staircase pattern emerges when we see the value of d increasing and n (y value) increasing at a much larger rate than d. The stairs come from small differences in the y axis that are much larger than the changes in the x axis. 
+
+Section 2: Fisher’s exact test.
+
+```{r Secion 2, include=TRUE}
+
+m <- 35  #promotions
+n <- 13  #failures
+t <- 24  #total (not 48 bc drawn from left column)
+x <- 21  #top left cell
+
+prob_promote_male <- dhyper(x, m, n, t)
+prob_promote_male
+
+#create a matrix
+cont_table <- matrix(c(21, 3, 24, 14, 10, 24, 35, 13, 48), nrow = 3, ncol = 3, byrow = TRUE)
+rownames(cont_table) <- c("promote", "hold", "total")
+colnames(cont_table) <- c("male", "female", "total")
+# View(cont_table)
+
+# Calculate probabilities for all cells
+prob_hold_male <- dhyper(3, 13, 35, 24) 
+prob_promote_female <- dhyper(14, 35, 13, 24)
+prob_hold_female <- dhyper(10, 13, 35, 24)
+
+# Chisq test
+chisq <- chisq.test(cont_table)
+p_value <- chisq$p.value
+
+```
+
+2.05% is for the top left cell. 
+
+Since the degrees of freedom for Fisher's exact test equals r-1 x c-1, here the contingency table has 3 rows and 3 columns, so it's 4. We need to test 4 cells to perform Fisher's exact test.
+
+P value was 0.27, which would not reject the null hypothesis, meaning there could be other factors involved in women not getting as promoted as men in this case. 
+
+Section 3: Confidence Interval Coverage
+
+
+```{r Secion 3, include=TRUE}
+
+# Write a function waldci(p_hat,n,alpha) that returns the upper and lower bounds of a Wald confidence interval for the probability of success for a sample of size with observed successes.
+waldci <- function(p_hat, n, alpha) {
+  z_value <- qnorm(1 - alpha/2)
+  upper_bound <- p_hat + z_value*sqrt(p_hat*(1-p_hat)/n)
+  lower_bound <- p_hat - z_value*sqrt(p_hat*(1-p_hat)/n)
+  return(c(lower_bound, upper_bound))
+}
+
+# Write a function coverageProb(p,n_trials,n_replicates,alpha) that simulates n_replicates Bernoulli trials of n_trials each with probability of success p , calculates a Wald confidence interval for each, and returns the proportion of the confidence intervals that actually contain the true underlying success probability p
+
+coverageProb <- function(p, n_trials, n_replicates, alpha) {
+  simulate_bern_trials <- replicate(n_replicates, rbinom(n_trials, 1, p))
+  
+  p_hat <- apply(simulate_bern_trials, 2, mean)
+  standard_error <- sqrt(p_hat*(1-p_hat)/n_trials)
+  
+  waldci_vals <- waldci(p_hat, n_trials, alpha)
+  
+  z_value <- qnorm(1 - alpha/2)
+  lower_bound <- p_hat - z_value*standard_error
+  upper_bound <- p_hat + z_value*standard_error
+  
+  coverage <- sapply(1:n_replicates, function(i) {
+    p >= lower_bound[i] & p <= upper_bound[i]
+    # p >= waldci_vals[1] & p <= waldci_vals[2]
+  })
+  
+  proportion_coverage <- sum(coverage)/n_replicates
+  return(proportion_coverage)
+}
+
+p_values <- seq(0.001, 0.999, by = 0.001)
+n_trials <- 50
+n_replicates <- 100
+alpha <- 0.05
+
+sample12 = c()
+sample50 = c()
+sample1000 = c()
+
+for (val in p_values){
+  sample12 <- append(sample12, coverageProb(val, 12, n_replicates, alpha))
+  sample50 <- append(sample50, coverageProb(val, 50, n_replicates, alpha))
+  sample1000 <- append(sample1000, coverageProb(val, 1000, n_replicates, alpha))
+
+  }
+
+library(ggplot2)
+df <- data.frame(p_values, sample12, sample50, sample1000)
+colors <- c("12" = "darkorange", "50" = "salmon", "1000" = "red")
+wald_ci_plot <- ggplot(df, aes(x = p_values)) +
+  geom_line(aes(y = sample12, color = "12"), size = 0.5) + 
+  geom_line(aes(y = sample50, color="50"), size = 0.5) +
+  geom_line(aes(y = sample1000, color="1000"), size = 0.5) +
+  labs(x = "p",
+        y = "Probability that Wald CI covers p",
+        color = "Sample size") +
+  # scale_color_manual(values = c("darkorange", "salmon", "red")) +
+  scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.5)) +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.5)) +
+  theme(panel.background = element_rect(fill = "white"), 
+        panel.grid.major = element_line(color = "darkgrey"), 
+        panel.grid.minor = element_line(color = "darkgrey"),
+        legend.position = "right")+
+  scale_color_manual(values = colors)
+
+wald_ci_plot
+
+```
+
+
+
