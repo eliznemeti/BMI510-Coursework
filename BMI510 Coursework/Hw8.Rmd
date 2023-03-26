@@ -11,7 +11,7 @@ student: Elizabeth Nemeti
 
 ***
 
-Section: F1 Score and other classifier performance metrics.
+Section: F1 Score and other classifier performance metrics. 
 
 We need common measures of classifier performance all the time, but they are actually not built in to base R and implementing them provides a great deal of insight into classifier performance. Create and document utility functions for the following measures of classifier performance. Configure the functions so that they accept either logical vectors of predictions and ground truth values, or numerical arguments with 1s corresponding to positives and 0s corresponding to negatives.
 
