@@ -1,0 +1,253 @@
+---
+title: "Homework 8"
+author: "J. Lucas McKay"
+date: "3/23/2023"
+output:
+  html_document: default
+  pdf_document: default
+student: Elizabeth Nemeti
+---
+<style>div.soln { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}</style>
+
+***
+
+Section: F1 Score and other classifier performance metrics.
+
+We need common measures of classifier performance all the time, but they are actually not built in to base R and implementing them provides a great deal of insight into classifier performance. Create and document utility functions for the following measures of classifier performance. Configure the functions so that they accept either logical vectors of predictions and ground truth values, or numerical arguments with 1s corresponding to positives and 0s corresponding to negatives.
+
+1. Sensitivity(pred,truth) : Sensitivity is defined as # True Positives / # All Positives. (i.e., where # All Positives = # True Positives + # False Negatives.) (1 point)
+
+```{r Secion 1.0, include=TRUE}
+
+# sample vectors
+pred <- c(1, 0, 1, 1, 0, 1, 1, 0)
+truth <- c(1, 0, 0, 1, 1, 1, 0, 0)
+
+pred <- as.logical(pred)
+truth <- as.logical(truth)
+
+Sensitivity <- function(pred, truth) {
+  true_positives <- sum(pred & truth)
+  all_positives <- sum(truth) # true positives + false negatives
+  sensitivity <- true_positives/all_positives
+  return(sensitivity)
+}
+
+```
+
+2. Specificity(pred,truth) : Specificity is defined as # True Negatives / # All Negatives. (i.e., where # All Negatives = # True Negatives + # False Positives.) (1 point)
+
+```{r Secion 1.1, include=TRUE}
+
+Specificity <- function(pred, truth) {
+  true_negatives <- sum(!pred & !truth) # !pred=predicted -ve, !truth=actually -ve
+  all_negatives <- sum(!truth) # true negatives + false positives
+  specificity <- true_negatives/all_negatives
+  return(specificity)
+}
+
+```
+
+3. Precision(pred,truth) : Precision is defined as # True Positives / (# True Positives + # False Positives). Precision is also referred to as Positive Predictive Value (PPV). (1 point)
+
+```{r Secion 1.2, include=TRUE}
+
+Precision <- function(pred, truth) {
+  true_positives <- sum(pred & truth)
+  false_positives <- sum(pred & !truth) # Count the false positives
+  precision <- true_positives/(true_positives + false_positives)
+  return(precision) 
+}
+
+```
+
+4. Recall(pred,truth) : Recall is defined identically to Sensitivity. (1 point)
+
+```{r Secion 1.3, include=TRUE}
+
+Recall <- Sensitivity
+
+```
+
+5. F1(pred,truth) : F1 score is defined as 2 x (precision x recall) / (precision + recall). (1 point)
+
+```{r Secion 1.4, include=TRUE}
+
+F1 <- function(pred, truth) {
+  precision <- Precision(pred, truth)
+  recall <- Recall(pred, truth) 
+  f1_score <- 2 * (precision * recall)/(precision + recall)
+  return(f1_score)
+}
+
+```
+
+Testing the functions:
+
+```{r Secion 1.5, include=TRUE}
+
+sensitivity <- Sensitivity(pred, truth)
+specificity <- Specificity(pred, truth)
+precision <- Precision(pred, truth)
+recall <- Recall(pred, truth)
+f1 <- F1(pred, truth)
+
+cat("Sensitivity and Recall", sensitivity, "\n")
+cat("Specificity:", specificity, "\n")
+cat("Precision:", precision, "\n")
+cat("F1 Score:", f1, "\n")
+
+```
+Section 2: Naïve Bayes.
+
+Under the common assumptions of "naïve Bayes" classification, all of the samples $x_{i}(i=1, \ldots, n)$ in a vector $\mathbf{x}$ are independent and identically distributed (iid). If there are $C_{k}$ potential classes from which $\mathbf{x}$ could be drawn, the one for which $p\left(C_{k}\right) \prod_{i=1}^{n} p\left(x_{i} \mid C_{k}\right)$ is greatest is the naïve Bayes prediction.
+
+Assume that you have received a dataset with two variables $x_{1}$ and $x_{2}$, and three classes, $A, B, C$. You have derived the following summary statistics for each class, where $m$ and $s$ indicate the sample mean and standard deviation of each class, respectively, and $n$ indicates the number of samples corresponding to that class in the dataset. Do the following; make naïve Bayes assumptions for all questions.
+
+$\begin{array}{cccc}\text { Class } & n & x_{1} & x_{2} \\ & & m, s & m, s \\ A & 800 & 7.0,4.0 & 1.0,1.0 \\ B & 150 & 1.0,1.0 & 7.0,4.0 \\ C & 50 & 1.0,1.0 & 1.0,1.0\end{array}$
+
+
+```{r Secion 2.0, include=TRUE}
+
+# visualizing the data in a plot
+library(ggplot2)
+
+class_A <- data.frame(x1 = rnorm(800, mean = 7.0, sd = 4.0),
+                      x2 = rnorm(800, mean = 1.0, sd = 1.0),
+                      Class = "A")
+
+class_B <- data.frame(x1 = rnorm(150, mean = 1.0, sd = 1.0),
+                      x2 = rnorm(150, mean = 7.0, sd = 4.0),
+                      Class = "B")
+
+class_C <- data.frame(x1 = rnorm(50, mean = 1.0, sd = 1.0),
+                      x2 = rnorm(50, mean = 1.0, sd = 1.0),
+                      Class = "C")
+
+samples <- rbind(class_A, class_B, class_C)
+
+ggplot(samples, aes(x1, x2, color = Class)) +
+  geom_point() +
+  labs(x = "x1",y = "x2") +
+  theme_minimal()
+
+```
+
+1. Calculate the class probabilities $p\left(C_{k}\right)$. (1 point)
+
+```{r Secion 2.1, include=TRUE}
+
+samples_total <- 800 + 150 + 50
+
+cat("Probability of class A:", 800/samples_total, "\n")
+cat("Probability of class B:", 150/samples_total, "\n")
+cat("Probability of class C:", 50/samples_total)
+
+```
+
+2. Create a function GaussProb $(\mathrm{x}, \mathrm{m}, \mathrm{s})$ that returns the probability $\prod_{i=1}^{n} p\left(x_{i} \mid C_{k}\right)$ of a particular sample $x_{i}$ under a Gaussian process with mean $m$ and standard deviation $s$. (1 point)
+
+```{r Secion 2.2, include=TRUE}
+
+# used joint probability to iterate over the x, m, s vectors since they're composed of x1 and x2
+
+GaussProb <- function(x, m, s) {
+  joint_prob <- 1
+  for (i in 1:length(x)) {
+    joint_prob <- joint_prob * ((1/(sqrt(2 * pi) * s[i])) * exp(-((x[i] - m[i]) ^ 2)/(2 * s[i] ^ 2)))
+  }
+  return(joint_prob)
+}
+
+
+x <- c(x1 = 9, x2 = 2) # random sample
+m <- c(x1 = 7, x2 = 1) # class A example
+s <- c(x1 = 4, x2 = 1)
+  
+print(GaussProb(x, m, s))
+
+```
+
+3. Create functions GaussProbA $(x)$, GaussProbB $(x)$, and GaussProbC $(x)$ that return the probability $\prod_{i=1}^{n} p\left(x_{i} \mid C_{k}\right)$ of a particular vector $\mathbf{x}=\left(x_{1}, x_{2}\right)$ under each class $k$. (1 point)
+
+```{r Secion 2.3, include=TRUE}
+
+GaussProbA <- function(x) {
+  m <- c(x1 = 7.0, x2 = 1.0)
+  s <- c(x1 = 4.0, x2 = 1.0)
+  return(GaussProb(x, m, s))
+}
+
+GaussProbB <- function(x) {
+  m <- c(x1 = 1.0, x2 = 7.0)
+  s <- c(x1 = 1.0, x2 = 4.0)
+  return(GaussProb(x, m, s))
+}
+
+GaussProbC <- function(x) {
+  m <- c(x1 = 1.0, x2 = 1.0)
+  s <- c(x1 = 1.0, x2 = 1.0)
+  return(GaussProb(x, m, s))
+}
+
+print(GaussProbA(x))
+print(GaussProbB(x))
+print(GaussProbC(x))
+
+```
+
+4. Create a function classProb $(\mathrm{x})$ that returns the probabilities of a particular vector $\mathbf{x}=\left(x_{1}, x_{2}\right)$ under each class $k$. Make sure to normalize the class predictions using a softmax function so that they can be treated as probabilities. (1 point)
+
+```{r Secion 2.4, include=TRUE}
+
+softmax <- function(x) {
+  exp_x <- exp(x)
+  return(exp_x / sum(exp_x))
+}
+
+classProb <- function(x) {
+  probA <- GaussProbA(x)
+  probB <- GaussProbB(x)
+  probC <- GaussProbC(x)
+  
+  class_probs <- c(A = probA, B = probB, C = probC)
+  normalized_probs <- softmax(class_probs)
+  
+  return(normalized_probs)
+}
+
+class_probs <- classProb(x)
+print(class_probs)
+
+```
+
+5. Predict the most likely classes for the following vectors: $\mathbf{x}=\left(x_{1}, x_{2}\right):(7,1),(1,7)$, and $(1,1)$. Note that these are the centers of the Gaussian processes for each class. What is the most likely class for $(1,1)$, and why?
+
+```{r Secion 2.5, include=TRUE}
+
+vector1 <- c(x1 = 7, x2 = 1)
+vector2 <- c(x1 = 1, x2 = 7)
+vector3 <- c(x1 = 1, x2 = 1)
+
+# calc all probabilities
+vector1_probs <- classProb(vector1)
+vector2_probs <- classProb(vector2)
+vector3_probs <- classProb(vector3)
+
+cat("Probabilites for (7, 1):", vector1_probs, "\n")
+cat("Probabilites for (1, 7):", vector2_probs, "\n")
+cat("Probabilites for (1, 1):", vector3_probs, "\n")
+
+# checking for most likely
+Class_Mostlikely <- function(class_probs) {
+  class_labels <- c("A", "B", "C")
+  return(class_labels[which.max(class_probs)])
+}
+
+cat("Most likely class for (7, 1):", Class_Mostlikely(vector1_probs), "\n")
+cat("Most likely class for (1, 7):", Class_Mostlikely(vector2_probs), "\n")
+cat("Most likely class for (1, 1):", Class_Mostlikely(vector3_probs))
+
+```
+The most likely class for (1,1) is C. This is because it's probability is highest among the classes A, B, and C meaning that its samples are closest to the mean and center of the Gaussian process. 
+
