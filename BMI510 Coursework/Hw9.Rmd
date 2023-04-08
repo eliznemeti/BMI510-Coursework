@@ -1,0 +1,160 @@
+---
+title: "Homework 9"
+author: "J. Lucas McKay"
+date: "2023-03-25"
+output:
+  html_document: default
+  pdf_document: default
+student: Elizabeth Nemeti
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, collapse = T, include = F)
+```
+
+***
+#### 1. Linear regression.
+
+We went through a manual linear regression process in class. Follow the same steps using the data in the `death_by_gender` dataset available [here](https://jlucasmckay.bmi.emory.edu/global/bmi510/death_by_gender.csv). This dataset is based on CDC data, and is a sample of deaths recorded during a particular period labeled with gender. The columns are `age` and `gender`.
+
+Use `age` as the response variable and `gender` as the predictor variable.
+Treat `F` as the reference group. Fit the following model:
+$$
+age_i=\beta_0+\beta_1\cdot\text{Gender}_i+\epsilon_i
+$$
+```{r Section setup, include=TRUE}
+
+library(tidyverse)
+death_by_gender_data <- read_csv("https://jlucasmckay.bmi.emory.edu/global/bmi510/death_by_gender.csv")
+View(death_by_gender_data)
+
+```
+
+* Build the design matrix $\mathbf{X}$ and create a matrix version of the response variable `age`. **(1 point)**
+
+```{r Section 1.0, include=TRUE}
+
+death_by_gender_data <- death_by_gender_data %>%
+  mutate(Gender_num = if_else(gender == "M", 1, 0))
+
+intercept <- rep(1, nrow(death_by_gender_data))
+X <- cbind(intercept, death_by_gender_data$Gender_num)
+colnames(X) <- c("Intercept", "Gender_num")
+X
+
+age_x <- matrix(death_by_gender_data$age, ncol = 1)
+age_x
+ 
+```
+* Apply the normal equations to derive the OLS estimates of the $\beta$s. **(1 point)**
+
+```{r Section 1.1, include=TRUE}
+
+xtx_inverse <- solve(t(X) %*% X)
+xty <- t(X) %*% age_x
+betas <- xtx_inverse %*% xty
+betas
+
+```
+
+* Calculate the residuals and the residual sum of squares $RSS$. **(1 point)**
+
+```{r Section 1.2, include=TRUE}
+
+residuals <- age_x - X %*% betas
+RSS <- sum(residuals^2)
+RSS
+
+```
+
+* Calculate the residual standard error $s$. **(1 point)**
+
+```{r Section 1.3, include=TRUE}
+
+n <- nrow(X)
+p <- ncol(X)
+s <- sqrt(RSS / (n - p))
+s
+
+```
+
+* Calculate $C$, the matrix used to derive the standard errors of the $\beta$s. **(1 point)**
+
+```{r Section 1.4, include=TRUE}
+
+C <- s^2 * xtx_inverse
+C
+
+```
+
+* Calculate $s_{\beta 1}$, the standard error of $\beta_1$. **(1 point)**
+
+```{r Section 1.5, include=TRUE}
+
+standarderror_beta1 <- sqrt(C[2, 2])
+standarderror_beta1
+
+```
+
+* Calculate a t statistic for $\beta_1$ and compare it to the t-statistic from the function `lm`. **(1 point)**
+
+```{r Section 1.6, include=TRUE}
+
+t_stat_beta1 <- betas[2] / standarderror_beta1
+t_stat_beta1
+
+# Compare it to the t-statistic from the lm function
+model <- lm(age ~ Gender_num, data = death_by_gender_data)
+summary(model)$coefficients[2, "t value"]
+
+```
+
+#### 2. Centering and scaling data for regression.
+
+In many cases, the parameters of linear models can be more interpretable by *centering* and *scaling* the independent and dependent variables prior to entry into regression models. *Centering* refers to removing the mean value of the variable, and *scaling* refers to scaling the variable to have some convenient range. The most common scaling method is to scale the variable so that it has unit variance (and also unit standard deviation, since $\sigma =\sqrt{\sigma^2} = \sqrt{1^2} = 1$).
+
+* Use `apply` to build a function that centers and scales all columns of an input matrix `x`. **(1 point)**
+
+```{r Section 2.0, include=TRUE}
+
+center_scale_func <- function(x) {
+  apply(x, 2, function(col) {
+    col_mean <- mean(col, na.rm = TRUE)
+    col_sd <- sd(col, na.rm = TRUE)
+    (col - col_mean) / col_sd
+  })
+}
+
+```
+
+* Test your function on the first four columns of the `iris` dataset. **(1/2 point)** and compare your results to those of `scale`. **(1/2 point)**
+
+```{r Section 2.1, include=TRUE}
+
+iris_data <- iris[, 1:4]
+iris_data
+my_scaled_iris_data <- center_scale_func(iris_data)
+builtin_scaled_iris_data <- scale(iris_data)
+max_abs_diff <- max(abs(my_scaled_iris_data - builtin_scaled_iris_data))
+is_data_equal <- max_abs_diff < 1e-8
+is_data_equal
+
+```
+
+They are equal after testing the functions.
+
+* Consider the following model: $\text{height}=\beta_0+\beta_1\text{Age}$.
+  * What does $\beta_0$ represent? What does it represent if $\text{Age}$ is centered and scaled prior to fitting the model? **(1/3 point)**
+
+Beta_0 represents the intercept of the model, which is the expected height when age is 0. 
+If we center and scale age before fitting the model, beta_0 indicates the expected height when age is at its average value, since the mean of the centered and scaled age variable is 0.
+
+  * What does $\beta_1$ represent? What does it represent if $\text{Age}$ is centered and scaled prior to fitting the model? **(1/3 point)**
+
+Beta_1 represents the slope of the model, by showing the expected change in height for each one-unit increase in age. 
+If we center & scale age before fitting the model, beta_1 represents the expected change in height for each one-standard-deviation increase in age, since we set the standard deviation of age to 1 during scaling.
+
+  * What does $\beta_1$ represent if $\text{Age}$ is centered and scaled to units of 5 years prior to fitting the model? **(1/3 point)**
+
+If we center and scale age using units of 5 years before fitting the model, beta_1 will show the expected change in height for every 5 year increase in age. 
+Here, the scaling factor is 5 meaing that a one unit increase in the scaled age variable equals a 5 year increase in the original age variable.
