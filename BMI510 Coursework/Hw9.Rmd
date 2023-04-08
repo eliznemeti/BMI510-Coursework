@@ -3,8 +3,8 @@ title: "Homework 9"
 author: "J. Lucas McKay"
 date: "2023-03-25"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 student: Elizabeth Nemeti
 ---
 
@@ -26,7 +26,7 @@ $$
 
 library(tidyverse)
 death_by_gender_data <- read_csv("https://jlucasmckay.bmi.emory.edu/global/bmi510/death_by_gender.csv")
-View(death_by_gender_data)
+# View(death_by_gender_data)
 
 ```
 
@@ -40,10 +40,10 @@ death_by_gender_data <- death_by_gender_data %>%
 intercept <- rep(1, nrow(death_by_gender_data))
 X <- cbind(intercept, death_by_gender_data$Gender_num)
 colnames(X) <- c("Intercept", "Gender_num")
-X
+# X (not going to print because its 1000s of page long)
 
 age_x <- matrix(death_by_gender_data$age, ncol = 1)
-age_x
+# age_x (not going to print because its 1000s of page long)
  
 ```
 * Apply the normal equations to derive the OLS estimates of the $\beta$s. **(1 point)**
@@ -132,7 +132,7 @@ center_scale_func <- function(x) {
 ```{r Section 2.1, include=TRUE}
 
 iris_data <- iris[, 1:4]
-iris_data
+# iris_data
 my_scaled_iris_data <- center_scale_func(iris_data)
 builtin_scaled_iris_data <- scale(iris_data)
 max_abs_diff <- max(abs(my_scaled_iris_data - builtin_scaled_iris_data))
