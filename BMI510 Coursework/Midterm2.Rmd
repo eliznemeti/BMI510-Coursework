@@ -1,0 +1,236 @@
+---
+title: "Midterm 2"
+author: "J. Lucas McKay"
+date: "April 3, 2023"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+<style>div.soln { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, collapse = T)
+library(tidyverse)
+library(ggplot2)
+```
+
+***
+**1. Linear Regression**
+
+It has been suggested that the distribution of body mass index (BMI) in the population follows a beta distribution.
+There are some BMI data on [the website](https://jlucasmckay.bmi.emory.edu/global/bmi510/bmi.csv). (Note that the BMI here is in normalized units, not the numbers around 20 that we see in practice.)
+
+* Plot `bp` vs. `bmi`. **(1 point)**
+```{r Section 1.1, include=TRUE}
+bmi_data <- read_csv("https://jlucasmckay.bmi.emory.edu/global/bmi510/bmi_data.csv")
+# View(bmi_data)
+
+ggplot(bmi_data, aes(x = bmi, y = bp)) +
+  geom_point() +
+  theme_minimal()
+```
+
+* Fit a straight line (a trendline) to the plot with `geom_smooth()`. **(1 point)**
+```{r Section 1.2, include=TRUE}
+ggplot(bmi_data, aes(x = bmi, y = bp)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  theme_minimal()
+```
+
+* Use `lm` to regress `bp` onto `bmi`. Call the fitted model `m1`. What is the p-value for the `bmi` coefficient? **(1 point)**
+```{r Section 1.3, include=TRUE}
+m1 <- lm(bp ~ bmi, data = bmi_data)
+summary(m1)
+```
+P value is 0.0006603.
+
+* Add the predicted values `bp_hat` from `m1` to the `bmi_data` dataset. **(1 point)**
+```{r Section 1.4, include=TRUE}
+bmi_data$bp_hat <- fitted(m1)
+head(bmi_data)
+```
+
+* Recreate the plot of of `bp` vs. `bmi`, and add the `bp_hat` values to the plot. Do they fall on the trendline? **(1 point)**
+```{r Section 1.5, include=TRUE}
+ggplot(bmi_data, aes(x = bmi)) +
+  geom_point(aes(y = bp), color = "black") +
+  geom_line(aes(y = bp_hat), color = "blue") +
+  geom_smooth(aes(y = bp), method = "lm", se = FALSE, color = "red") +
+  theme_minimal()
+```
+The bp_hat values do fall on the trendline. (since they're under the red line it's not directly visible, but if the red line is removed the blue line shows)
+
+* Use `confint` to identify 95% confidence intervals for $\beta_{bp}$, the model coefficient for `bp`. **(1 point)**
+```{r Section 1.6, include=TRUE}
+confint(m1)
+```
+
+* Identify the standard errors of the model coefficients **(1/2 point)** and use them to manually calculate a 95% confidence interval for $\beta_{bp}$. Compare your results to those of the built-in function. **(1/2 point)**
+```{r Section 1.7, include=TRUE}
+coefs <- summary(m1)$coefficients
+coefs
+
+stand_error_beta_bp <- coefs["bmi", "Std. Error"]
+t_critical <- qt(0.975, df = m1$df.residual)
+lower_bound <- coefs["bmi", "Estimate"] - t_critical * stand_error_beta_bp
+upper_bound <- coefs["bmi", "Estimate"] + t_critical * stand_error_beta_bp
+confint_manual <- c(lower_bound, upper_bound)
+
+# comparison
+confint_builtin <- confint(m1)["bmi",]
+cat("Manual calculation of 95% confidence interval for bmi coefficient:\n")
+print(confint_manual)
+cat("\nBuilt-in function calculation of 95% confidence interval for bmi coefficient:\n")
+print(confint_builtin)
+cat("\nDifference between manual and built-in calculations:\n")
+print(confint_manual - confint_builtin)
+
+```
+This manual version of confint has the same results as provided by the confint function.
+
+***
+**2. Correlation Coefficients**
+
+* Calculate the correlation coefficient $r$ between `bp` and `bmi`. **(1/2 point)** Is it negligible, small, medium, or large, according to the effect sizes listed [here](https://jlucasmckay.bmi.emory.edu/global/power/power.html)? **(1/2 point)**
+```{r Section 2.1, include=TRUE}
+r <- cor(bmi_data$bp, bmi_data$bmi)
+cat("Correlation coefficient (r):", r)
+
+if (abs(r) < 0.1) {
+  cat("Negligible effect")
+} else if (abs(r) < 0.3) {
+  cat("Small effect")
+} else if (abs(r) < 0.5) {
+  cat("Medium effect")
+} else {
+  cat("Large effect")
+}
+
+```
+
+* Use `cor.test` to calculate a 95% confidence interval for the correlation coefficient $r$. **(1/2 point)** Is it possible that the true underlying relationship could correspond to a small effect according to the same effect sizes? **(1/2 point)**
+```{r Section 2.2, include=TRUE}
+correlation_test <- cor.test(bmi_data$bp, bmi_data$bmi)
+confidence_interval <- correlation_test$conf.int
+cat("95% confidence interval:", confidence_interval, "\n")
+
+if (confidence_interval[1] < 0.1 & confidence_interval[2] > 0.1) {
+  cat("It's possible that the true underlying relationship could correspond to a small effect.")
+} else {
+  cat("It's not likely that the true underlying relationship could correspond to a small effect.")
+}
+```
+
+* Plot `bp` vs. `bmi` after randomly re-arranging ("shuffling) the order of `bmi`. Fit a straight line as before. Is the slope more or less steep than before? **(1 point)**
+```{r Section 2.3, include=TRUE}
+bmi_data_shuffled <- bmi_data
+bmi_data_shuffled$bmi <- sample(bmi_data$bmi)
+
+ggplot(bmi_data_shuffled, aes(x = bmi, y = bp)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+```
+The slope is much less steep than before, almost horizontal. 
+
+* Use `replicate` to calculate the correlation coefficient between `bp` and `bmi` after randomly re-arranging the order of `bmi` 10,000 times. This is a simple permutation test, and simulates the relationship between the two variables under the null hypothesis that there is no correlation at all. **(1 point)**
+```{r Section 2.4, include=TRUE}
+replications <- 10000
+correlation_coefs <- replicate(replications, {
+  shuffled_bmi <- sample(bmi_data$bmi)
+  cor(bmi_data$bp, shuffled_bmi)
+})
+#correlation_coefs # option for all the coefs
+summary(correlation_coefs)
+hist(correlation_coefs, main = "Histogram of Random Correlations", xlab = "Correlation Coefficient") #to visualize
+```
+
+* Out of the 10,000 random shuffles, how many correlation coefficients are smaller in magnitude than `r`? This is a non-parametric approximation to a p-value. **(1 point)**
+```{r Section 2.5, include=TRUE}
+less_than_r_count <- sum(abs(correlation_coefs) < abs(r))
+cat(less_than_r_count, "correlation coefficients are smaller than r")
+```
+
+***
+**3. Maximum Likelihood**
+
+Now let's examine the `bmi` variable itself. There are two parameters, `shape1` and `shape2` that determine the beta density.
+
+* Create a function `likelihood(shape1,shape2,x)` that calculates the log likelihood of bmi data `x` under the beta density with parameters `shape1` and `shape2`. **(1 point)**
+```{r Section 3.1, include=TRUE}
+likelihood <- function(shape1, shape2, x) {
+  log_likelihood <- sum(dbeta(x, shape1, shape2, log = TRUE))
+  return(log_likelihood)
+}
+```
+
+* Perform a grid search to identify the maximum likelihood estimators of `shape1` and `shape2`. Sweep each parameter value from 0.1 to 10, with 100 total steps. **(1 point)**
+```{r Section 3.2, include=TRUE}
+bmi_normalized <- bmi_data$bmi / max(bmi_data$bmi) # normalize to work w beta distribution
+grid_search <- seq(0.1, 10, length.out = 100) # 100 steps and parameter sweep 0.1 to 10
+log_likelihood_matrix <- matrix(0, nrow = 100, ncol = 100) # stores the log likelihood values for shape1 & shape2
+
+# iterates through all combinations of shape1 & shape2
+for (i in 1:length(grid_search)) {
+  for (j in 1:length(grid_search)) {
+    log_likelihood_matrix[i, j] <- likelihood(grid_search[i], grid_search[j], bmi_normalized)
+  }
+}
+
+max_indices <- which(log_likelihood_matrix == max(log_likelihood_matrix), arr.ind = TRUE) #get indices i, j of max log LL
+shape1_max <- grid_search[max_indices[1]]
+shape2_max <- grid_search[max_indices[2]]
+cat("Maximum likelihood estimate for shape1:", shape1_max, "and shape2:", shape2_max)
+```
+
+* Plot the log likelihood as a function of `shape1` with `ggplot2` and `geom_point`. Map `shape2` to point color. Make each point partially transparent (`alpha`=0.2). **(1 point)**
+```{r Section 3.3, include=TRUE}
+grid_search <- expand.grid(shape1 = grid_search, shape2 = grid_search)
+grid_search$log_likelihood <- c(log_likelihood_matrix)
+
+ggplot(grid_search, aes(x = shape1, y = log_likelihood, color = shape2)) +
+  geom_point(alpha = 0.2) +
+  scale_color_continuous(low = "blue", high = "red") +
+  theme_minimal() +
+  labs(x = "Shape1",
+       y = "Log Likelihood",
+       color = "Shape2")
+```
+
+***
+**4. Manipulating distribution functions**
+
+The `bmi` variable is in standardized units that can be used in built-in R functions. Assuming that the population from which this sample is drawn are well-represented by a beta density parameterized by your maximum likelihood estimators of `shape1` and `shape2`:
+
+* What proportion of the sample has `bmi` between 0.2 and 0.4? **(1 point)**
+```{r Section 4.1, include=TRUE}
+sample_proportion <- sum(bmi_normalized >= 0.2 & bmi_normalized <= 0.4) / length(bmi_normalized)
+cat("A proportion of:", sample_proportion)
+```
+
+* What proportion of the population has `bmi` between 0.2 and 0.4? **(1 point)**
+```{r Section 4.2, include=TRUE}
+population_proportion <- pbeta(0.4, shape1_max, shape2_max) - pbeta(0.2, shape1_max, shape2_max)
+cat("A proportion of:", population_proportion)
+```
+
+* What cut-off values of `bmi` could be used to identify people in the middle 50% of the sample? **(1 point)**
+```{r Section 4.3, include=TRUE}
+cutoff_vals_sample <- quantile(bmi_normalized, probs = c(0.25, 0.75))
+cat("Cut off values of:", cutoff_vals_sample)
+```
+
+* What cut-off values of `bmi` could be used to identify people in the middle 50% of the population? **(1 point)**
+```{r Section 4.4, include=TRUE}
+cutoff_vals_population <- qbeta(c(0.25, 0.75), shape1_max, shape2_max)
+cat("Cut off values of:", cutoff_vals_population)
+```
+
+* What is the numerical value of the beta density for a person with `bmi` at the center (50th percentile) of the beta density? Is it greater than or less than 1? **(1 point)**
+```{r Section 4.5, include=TRUE}
+bmi_center <- qbeta(0.5, shape1_max, shape2_max) # bmi value at the 50th percentile
+beta_density <- dbeta(bmi_center, shape1_max, shape2_max) # using density function to find beta density val at bmi_center
+compare <- ifelse(beta_density > 1, "greater than", "less than")
+cat("It is", compare, "1 because the beta density value at the center is:", beta_density)
+```
